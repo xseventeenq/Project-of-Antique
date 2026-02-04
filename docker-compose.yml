@@ -1,0 +1,100 @@
+# 古玩字画智能对比系统 - Docker Compose 配置
+
+version: '3.8'
+
+services:
+  # ==================== PostgreSQL 数据库 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: antique-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: antique_comparison
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - antique-network
+
+  # ==================== FastAPI 后端 ====================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: antique-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=antique_comparison
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - SECRET_KEY=your-secret-key-change-this-in-production
+      - DEBUG=True
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - antique-network
+    command: >
+      sh -c "
+        echo '等待数据库启动...' &&
+        sleep 5 &&
+        echo '运行数据库迁移...' &&
+        alembic upgrade head &&
+        echo '启动后端服务...' &&
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # ==================== Vue 3 前端 ====================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: antique-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - antique-network
+
+  # ==================== pgAdmin（可选）====================
+  # pgAdmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: antique-pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@antique.local
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - antique-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  antique-network:
+    driver: bridge

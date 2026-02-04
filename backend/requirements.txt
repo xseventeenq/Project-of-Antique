@@ -1,0 +1,50 @@
+# ==================== Web 框架 ====================
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# ==================== 数据库 ====================
+sqlalchemy==2.0.25
+alembic==1.13.1
+# psycopg2-binary==2.9.9  # PostgreSQL support (optional)
+
+# ==================== 数据验证 ====================
+pydantic==2.6.1
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# ==================== 认证和安全 ====================
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+
+# ==================== 工具库 ====================
+python-dotenv==1.0.1
+openpyxl==3.1.2
+
+# ==================== 图片处理 ====================
+Pillow
+opencv-python
+numpy
+
+# ==================== PDF 生成 ====================
+reportlab==4.1.0
+
+# ==================== 定时任务 ====================
+apscheduler==3.10.4
+
+# ==================== 测试 ====================
+pytest==8.0.0
+pytest-asyncio==0.23.4
+pytest-cov==4.0.0
+httpx==0.26.0
+
+# ==================== 代码质量 ====================
+black==24.1.1
+flake8==7.0.0
+mypy==1.8.0
+
+# ==================== AI 服务（可选）====================
+# openai==1.10.0  # 如果使用 OpenAI Vision API
+# torch==2.2.0    # 如果使用本地模型
+# transformers==4.37.2  # 如果使用 Hugging Face 模型

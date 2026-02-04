@@ -1,0 +1,2 @@
+# 保持 uploads 目录在 Git 中
+# 实际上传的文件会被 .gitignore 忽略

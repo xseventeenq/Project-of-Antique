@@ -1,0 +1,102 @@
+# 古玩字画智能对比系统 - Docker Compose 开发环境配置
+
+version: '3.8'
+
+services:
+  # ==================== PostgreSQL 数据库 ====================
+  postgres:
+    image: postgres:15-alpine
+    container_name: antique-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: antique_comparison
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      # 挂载初始化 SQL 脚本（可选）
+      # - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - antique-dev-network
+
+  # ==================== FastAPI 后端（开发模式）====================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: antique-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=antique_comparison
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - SECRET_KEY=dev-secret-key-do-not-use-in-production
+      - DEBUG=True
+      - ENVIRONMENT=development
+    volumes:
+      # 挂载源代码，实现热重载
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+      # 排除不需要挂载的目录
+      - /app/__pycache__
+      - /app/.pytest_cache
+      - /app/venv
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - antique-dev-network
+    command: >
+      sh -c "
+        echo '🔧 开发模式启动...' &&
+        echo '⏳ 等待数据库启动...' &&
+        sleep 5 &&
+        echo '📊 运行数据库迁移...' &&
+        alembic upgrade head &&
+        echo '🚀 启动后端服务（热重载模式）...' &&
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+      "
+
+  # ==================== Vue 3 前端（开发模式）====================
+  # 注意：开发环境建议直接在宿主机运行前端，使用 npm run dev
+  # 如果需要在 Docker 中运行，可以使用以下配置
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: antique-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api
+    volumes:
+      # 挂载源代码
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - antique-dev-network
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  antique-dev-network:
+    driver: bridge

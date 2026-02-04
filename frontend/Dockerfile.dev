@@ -1,0 +1,20 @@
+# 古玩字画智能对比系统 - 前端开发环境 Dockerfile
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# 安装 pnpm（可选，推荐使用）
+RUN npm install -g pnpm
+
+# 复制 package.json
+COPY package.json pnpm-lock.yaml* ./
+
+# 安装依赖
+RUN pnpm install || npm install
+
+# 暴露 Vite 开发服务器端口
+EXPOSE 5173
+
+# 启动开发服务器
+CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0"]
