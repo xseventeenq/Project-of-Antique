@@ -91,10 +91,20 @@ const handleLogin = async () => {
     authStore.setToken(access_token)
     authStore.setUser(user)
 
-    ElMessage.success('登录成功')
+    ElMessage.success('登录成功，正在跳转...')
+
+    console.log('[Login] Token saved:', access_token.substring(0, 20) + '...')
+    console.log('[Login] User saved:', user)
+    console.log('[Login] localStorage token:', localStorage.getItem('token'))
 
     // 跳转到首页
-    router.push('/')
+    setTimeout(() => {
+      router.push('/').then(() => {
+        console.log('[Login] Navigation succeeded')
+      }).catch((err) => {
+        console.error('[Login] Navigation failed:', err)
+      })
+    }, 500)
   } catch (error: any) {
     if (error.response?.status === 401) {
       ElMessage.error('用户名或密码错误')

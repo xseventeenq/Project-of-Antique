@@ -32,7 +32,7 @@ class TimestampMixin:
     )
 
 
-class BaseModel(Base):
+class BaseModel(TimestampMixin, Base):
     """
     抽象基础模型
 

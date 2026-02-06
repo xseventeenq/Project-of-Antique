@@ -6,7 +6,7 @@
 """
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -57,6 +57,33 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """记录所有请求和响应"""
+    import logging
+    logger = logging.getLogger("uvicorn")
+
+    # 记录请求
+    logger.info(f"[REQUEST] {request.method} {request.url.path}")
+
+    # 处理请求
+    response = await call_next(request)
+
+    # 记录响应
+    logger.info(f"[RESPONSE] {request.method} {request.url.path} - Status: {response.status_code}")
+
+    # 如果是错误响应，尝试记录响应体
+    if response.status_code >= 400:
+        try:
+            body = await response.body()
+            if body:
+                logger.error(f"[ERROR RESPONSE] {body.decode('utf-8', errors='ignore')}")
+        except:
+            pass
+
+    return response
+
+
 # ==================== 根路由 ====================
 
 @app.get("/", tags=["根路由"])
@@ -84,11 +111,11 @@ async def health_check():
 from app.api import auth, artifacts, borrow, return_records, admin, artifact_history
 
 app.include_router(auth.router, prefix="/api")
-app.include_router(artifacts.router)
-app.include_router(borrow.router)
-app.include_router(return_records.router)
-app.include_router(admin.router)
-app.include_router(artifact_history.router)
+app.include_router(artifacts.router, prefix="/api")
+app.include_router(borrow.router, prefix="/api")
+app.include_router(return_records.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
+app.include_router(artifact_history.router, prefix="/api")
 
 # ==================== 静态文件服务 ====================
 

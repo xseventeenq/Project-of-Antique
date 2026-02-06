@@ -25,7 +25,7 @@
 
     <!-- 主体内容 -->
     <el-main class="layout-main">
-      <router-view />
+      <slot />
     </el-main>
   </el-container>
 </template>

@@ -3,6 +3,7 @@
 
 处理用户注册、登录、获取当前用户信息等
 """
+import logging
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,7 +16,29 @@ from app.core.security import create_access_token, get_password_hash, verify_pas
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["认证"])
+
+
+@router.get("/test")
+def test_endpoint():
+    """测试端点"""
+    return {"status": "ok", "message": "Auth API is working"}
+
+
+@router.post("/simple-login")
+def simple_login():
+    """简单登录测试（不查数据库）"""
+    return {
+        "access_token": "test_token_12345",
+        "token_type": "bearer",
+        "user": {
+            "id": 1,
+            "username": "admin",
+            "role": "admin"
+        }
+    }
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -54,35 +77,46 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
     验证用户名和密码，返回访问令牌
     """
-    # 查找用户
-    user = db.query(User).filter(User.username == user_data.username).first()
+    try:
+        # 查找用户
+        user = db.query(User).filter(User.username == user_data.username).first()
 
-    # 验证用户是否存在
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误"
+        # 验证用户是否存在
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="用户名或密码错误"
+            )
+
+        # 验证密码
+        if not verify_password(user_data.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="用户名或密码错误"
+            )
+
+        # 创建访问令牌
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(user.id), "role": user.role},
+            expires_delta=access_token_expires
         )
 
-    # 验证密码
-    if not verify_password(user_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误"
+        user_response = UserResponse.model_validate(user)
+
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            user=user_response
         )
-
-    # 创建访问令牌
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role},
-        expires_delta=access_token_expires
-    )
-
-    return Token(
-        access_token=access_token,
-        token_type="bearer",
-        user=UserResponse.model_validate(user)
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login failed: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"登录失败: {str(e)}"
+        )
 
 
 @router.get("/me", response_model=UserResponse)

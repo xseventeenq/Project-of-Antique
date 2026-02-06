@@ -3,6 +3,8 @@
 
 定义用户创建、登录、响应等数据结构
 """
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Any
 
